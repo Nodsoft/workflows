@@ -1,0 +1,84 @@
+name: Build .NET Project(s)
+
+on:
+  workflow_call:
+    inputs:
+      dotnet-version:
+        type: string
+        description: 'The version of .NET to use for builds'
+        required: false
+        default: '8.0'
+
+      project-file:
+        type: string
+        description: 'The project file to build'
+        required: false
+        default: ''
+
+      build-folder:
+        type: string
+        description: 'The output build folder'
+        required: false
+        default: 'build'
+
+      configuration:
+        type: string
+        description: 'The build configuration'
+        required: false
+        default: 'Release'
+
+      artifact-name:
+        type: string
+        description: 'The name of the build artifact'
+        required: false
+        default: './build'
+
+      use-nbgv:
+        type: boolean
+        description: 'Whether to use NBGV to generate version numbers'
+        required: false
+        default: false
+
+
+jobs:
+  build: 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive' # Fetch all submodules
+          fetch-depth: 0 # Fetch all history for NBGV
+  
+      - name: Setup .NET ${{ inputs.dotnet-version }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+  
+      - name: Install NBGV
+        if: ${{ inputs.use-nbgv == true }}
+        run: dotnet tool install --global nbgv
+  
+      - name: Restore dependencies
+        run: dotnet restore ${{ inputs.project-file }}
+  
+      - name: Build project(s)
+        run: dotnet build ${{ inputs.project-file }} --no-restore --configuration ${{ inputs.configuration }} --output ${{ inputs.build-folder }}
+  
+      - name: Test project(s)
+        id: test
+        run: dotnet test ${{ inputs.project-file }} --no-build --configuration ${{ inputs.configuration }} --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        continue-on-error: true
+
+      - name: Save test results as artifact
+        if: ${{ !cancelled() && steps.test.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: _test-results
+          path: test-results.trx
+  
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.build-folder }}
