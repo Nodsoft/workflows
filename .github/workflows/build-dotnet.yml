@@ -72,7 +72,10 @@ jobs:
         run: dotnet restore ${{ inputs.project-file }}
   
       - name: Build project(s)
-        run: dotnet build ${{ inputs.project-file }} --no-restore --configuration ${{ inputs.configuration }} --output ${{ inputs.build-folder }} ${{ inputs.build-args }}
+        run: dotnet build ${{ inputs.project-file }} 
+          --configuration ${{ inputs.configuration }} 
+          ${{ endsWith(inputs.project-file, '.sln') && '' || format('--output {0}', inputs.build-folder) }}
+          ${{ inputs.build-args }}
   
       - name: Test project(s)
         id: test
