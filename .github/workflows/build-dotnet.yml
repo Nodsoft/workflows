@@ -1,5 +1,8 @@
 name: Build .NET Project(s)
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:
@@ -39,6 +42,12 @@ on:
         required: false
         default: false
 
+      build-args:
+        type: string
+        description: 'Additional arguments to pass to the build command'
+        required: false
+        default: ''
+
 
 jobs:
   build: 
@@ -63,7 +72,7 @@ jobs:
         run: dotnet restore ${{ inputs.project-file }}
   
       - name: Build project(s)
-        run: dotnet build ${{ inputs.project-file }} --no-restore --configuration ${{ inputs.configuration }} --output ${{ inputs.build-folder }}
+        run: dotnet build ${{ inputs.project-file }} --no-restore --configuration ${{ inputs.configuration }} --output ${{ inputs.build-folder }} ${{ inputs.build-args }}
   
       - name: Test project(s)
         id: test
