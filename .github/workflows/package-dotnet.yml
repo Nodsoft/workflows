@@ -1,0 +1,82 @@
+name: Build & Package (.NET)
+  
+on:
+  workflow_call:
+    inputs: 
+      dotnet-version:
+        type: string
+        description: 'The version of .NET to use for builds'
+        required: false
+        default: '8.0'
+
+      project-file:
+        type: string
+        description: 'The project file to build'
+        required: false
+        default: ''
+
+      build-args:
+        type: string
+        description: 'Additional arguments to pass to the build command'
+        required: false
+        default: ''
+
+      publish-args:
+        type: string
+        description: 'Additional arguments to pass to the publish command'
+        required: false
+        default: ''
+
+      configuration:
+        type: string
+        description: 'The build configuration'
+        required: false
+        default: 'Release'
+
+      artifact-name:
+        type: string
+        description: 'The name of the build artifact'
+        required: false
+        default: './build'
+
+      use-nbgv:
+        type: boolean
+        description: 'Whether to use NBGV to generate version numbers'
+        required: false
+        default: false
+
+    
+permissions:
+  contents: read
+    
+jobs:
+  # Build prod
+  build-api-prod:
+    name: Build & Package .NET Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+          # include-prerelease: true
+
+      - name: Install NBGV
+        if: ${{ inputs.use-nbgv == true }}
+        run: dotnet tool install --global nbgv
+
+      - name: Build .NET project
+        run: dotnet build ${{ inputs.project-file }} --configuration ${{ inputs.configuration }} ${{ inputs.build-args }}
+        
+      - name: Package .NET project
+        run: dotnet publish ${{ inputs.project-file }} --configuration ${{ inputs.configuration }} --output ./__publish ${{ inputs.publish-args }}
+        
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./__publish
