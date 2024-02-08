@@ -1,0 +1,80 @@
+name: Deploy to server via SSH
+
+permissions:
+  contents: read
+  deployments: write
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'The name of the artifact to deploy'
+        type: string
+        required: true
+      artifact_path:
+        description: 'The path of the artifact to deploy'
+        type: string
+        required: true
+
+      host:
+        description: 'The SSH host to deploy to'
+        type: string
+        required: true
+      known_hosts:
+        description: 'The known hosts to add to the known_hosts file'
+        type: string
+        required: false
+        default: '*.nodsoft.net'
+      user:
+        description: 'The SSH username'
+        type: string
+        required: true
+      private_key:
+        description: 'The SSH private key'
+        type: string
+        required: true
+      remote_path:
+        description: 'The path to deploy the artifact to'
+        type: string
+        required: true
+
+      pre_deploy_cmd:
+        description: 'The command to run before deploying the artifact'
+        type: string
+        required: false
+      post_deploy_cmd:
+        description: 'The command to run after deploying the artifact'
+        type: string
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_path }}
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ inputs.private_key }}
+          known_hosts: ${{ inputs.known_hosts }}
+      
+      - name: Add Known Hosts
+        run: ssh-keyscan -H ${{ inputs.host }} >> ~/.ssh/known_hosts
+
+      - name: Run pre-deploy command
+        run: ssh ${{ inputs.user }}@${{ inputs.host }} ${{ inputs.pre_deploy_cmd }}
+
+      - name: Deploy artifact
+        run: rsync -rvmzOE . ${{ inputs.user }}@${{ inputs.host }}:${{ inputs.remote_path }}
+
+      - name: Run post-deploy command
+        run: ssh ${{ inputs.user }}@${{ inputs.host }} ${{ inputs.post_deploy_cmd }}
+
+
+
+
